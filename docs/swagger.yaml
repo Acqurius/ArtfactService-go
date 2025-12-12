@@ -1,0 +1,164 @@
+basePath: /
+definitions:
+  models.GenTokenRequest:
+    properties:
+      allowed_cidr:
+        type: string
+      artifact_uuid:
+        type: string
+      max_downloads:
+        type: integer
+      valid_from:
+        type: string
+      valid_to:
+        type: string
+    required:
+    - artifact_uuid
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a sample server for uploading and downloading files.
+  title: File Upload API
+  version: "1.0"
+paths:
+  /artifacts/{token}:
+    get:
+      description: Download a file using a token, enforcing constraints
+      parameters:
+      - description: Access Token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Download file with Presigned URL
+      tags:
+      - tokens
+  /artifacts/innerop/{id}:
+    get:
+      description: Downloads a file by its ID
+      parameters:
+      - description: File ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Download a file
+      tags:
+      - files
+  /artifacts/innerop/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads a file and saves metadata to the database
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a file
+      tags:
+      - files
+  /genPresignedURL:
+    post:
+      consumes:
+      - application/json
+      description: Generates a token for temporary file access with constraints
+      parameters:
+      - description: Token constraints
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GenTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Generate a Presigned URL
+      tags:
+      - tokens
+swagger: "2.0"
