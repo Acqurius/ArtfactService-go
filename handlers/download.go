@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	"path/filepath"
 
 	"file-upload-api/db"
 	"file-upload-api/models"
+	"file-upload-api/storage"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,29 +39,19 @@ func DownloadFile(c *gin.Context) {
 		return
 	}
 
-	// Construct file path on disk
-	// We stored it as UUID + original extension in upload handler
-	// But we didn't store the extension in DB?
-	// Ah, in upload.go we did: `newFilename := id + ext`
-	// But we only stored `filename` (original name) in DB.
-	// We need to know the extension to find the file on disk or we should store the disk path/filename in DB.
-	// Let's check upload.go again.
-	// `metadata.Filename` comes from `file.Filename` (original).
-	// We should probably check the disk for files starting with ID or store the storage filename in DB.
-	
-	// FIX: Let's assume we can glob for the file or we change the DB schema to store `storage_name`.
-	// For simplicity, let's look for the file in the uploads directory matching the ID.
-	
-	matches, err := filepath.Glob(filepath.Join("uploads", id+"*"))
-	if err != nil || len(matches) == 0 {
+
+	// Download file from Ceph
+	fileReader, err := storage.DownloadFile(id)
+	if err != nil {
+		log.Println("Failed to download file from Ceph:", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "File content not found"})
 		return
 	}
-	
-	filePath := matches[0]
+	defer fileReader.Close()
 
+	// Stream file to response
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Disposition", "attachment; filename="+metadata.Filename)
 	c.Header("Content-Type", metadata.ContentType)
-	c.File(filePath)
+	c.DataFromReader(http.StatusOK, metadata.Size, metadata.ContentType, fileReader, nil)
 }

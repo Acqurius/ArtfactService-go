@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
 	"net"
 	"net/http"
-	"path/filepath"
 	"time"
 
 	"file-upload-api/db"
 	"file-upload-api/models"
+	"file-upload-api/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -146,18 +147,18 @@ func DownloadFileWithToken(c *gin.Context) {
 		return
 	}
 
-	// Serve File
-	// Assuming file is in uploads/uuid.ext. We need to find the extension again or re-use method.
-	// We only have uuid. Let's glob again.
-	matches, err := filepath.Glob(filepath.Join("uploads", t.ArtifactUUID+"*"))
-	if err != nil || len(matches) == 0 {
+	// Download file from Ceph
+	fileReader, err := storage.DownloadFile(t.ArtifactUUID)
+	if err != nil {
+		log.Println("Failed to download file from Ceph:", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "File content not found"})
 		return
 	}
-	filePath := matches[0]
+	defer fileReader.Close()
 
+	// Stream file to response
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Header("Content-Type", contentType)
-	c.File(filePath)
+	c.DataFromReader(http.StatusOK, -1, contentType, fileReader, nil)
 }

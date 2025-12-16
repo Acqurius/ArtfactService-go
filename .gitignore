@@ -1,6 +1,6 @@
-/.venv
 /uploads
-/storage/__pycache__
+.env
 files.db
 server
+
 

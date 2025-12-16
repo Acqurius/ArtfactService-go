@@ -3,10 +3,10 @@ package handlers
 import (
 	"log"
 	"net/http"
-	"path/filepath"
 
 	"file-upload-api/db"
 	"file-upload-api/models"
+	"file-upload-api/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -33,13 +33,19 @@ func UploadFile(c *gin.Context) {
 
 	// Generate UUID
 	uuid := uuid.New().String()
-	ext := filepath.Ext(file.Filename)
-	newFilename := uuid + ext
-	uploadPath := filepath.Join("uploads", newFilename)
+	
+	// Open uploaded file
+	fileReader, err := file.Open()
+	if err != nil {
+		log.Println("Failed to open uploaded file:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to process file"})
+		return
+	}
+	defer fileReader.Close()
 
-	// Save file to disk
-	if err := c.SaveUploadedFile(file, uploadPath); err != nil {
-		log.Println("Failed to save file:", err)
+	// Upload file to Ceph
+	if err := storage.UploadFile(uuid, file.Filename, fileReader, file.Header.Get("Content-Type"), file.Size); err != nil {
+		log.Println("Failed to upload file to Ceph:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save file"})
 		return
 	}

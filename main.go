@@ -7,6 +7,7 @@ import (
 	"file-upload-api/db"
 	_ "file-upload-api/docs"
 	"file-upload-api/handlers"
+	"file-upload-api/storage"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -23,9 +24,9 @@ func main() {
 	// Initialize Database
 	db.InitDB()
 	
-	// Create uploads directory if not exists
-	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
-		os.Mkdir("uploads", 0755)
+	// Initialize Storage (Ceph/S3)
+	if err := storage.InitStorage(); err != nil {
+		log.Fatal("Failed to initialize storage: ", err)
 	}
 
 	r := gin.Default()

@@ -9,11 +9,13 @@ A file upload and download API service with presigned URL support, built with Go
 - 🔐 **Presigned URLs**: Generate time-limited, access-controlled download tokens
 - 📊 **Swagger Documentation**: Interactive API documentation at `/swagger/index.html`
 - 💾 **SQLite Database**: Lightweight, file-based database for metadata storage
+- ☁️ **Ceph Storage**: S3-compatible object storage for scalable file management
 
 ## Prerequisites
 
 - Go 1.24.0 or higher
 - SQLite (included via modernc.org/sqlite)
+- Ceph S3-compatible storage endpoint with access credentials
 
 ## Quick Start
 
@@ -24,7 +26,29 @@ git clone <your-repo-url>
 cd ArtfactService-go
 ```
 
-### 2. Initialize the Database
+### 2. Configure Ceph Storage
+
+Set the following environment variables with your Ceph credentials:
+
+```bash
+export CEPH_ACCESS_KEY="your-access-key"
+export CEPH_SECRET_KEY="your-secret-key"
+export CEPH_ENDPOINT="http://your-ceph-endpoint:port"
+export CEPH_BUCKET="artifacts"  # Optional, defaults to "artifacts"
+```
+
+**Example:**
+```bash
+export CEPH_ACCESS_KEY="C1L81CIJEQ538MNODAOL"
+export CEPH_SECRET_KEY="69Ia5JnXEp4ACyxANIefaZpCBxD3zCZPEWJQMv3l"
+export CEPH_ENDPOINT="http://10.188.157.5:80"
+export CEPH_BUCKET="artifacts"
+```
+
+> [!IMPORTANT]
+> Ensure the specified bucket exists in your Ceph storage before running the server.
+
+### 3. Initialize the Database
 
 **Option A: Using the Go script (Recommended)**
 
@@ -38,13 +62,13 @@ go run scripts/init_db.go
 sqlite3 files.db < schema.sql
 ```
 
-### 3. Install Dependencies
+### 4. Install Dependencies
 
 ```bash
 go mod download
 ```
 
-### 4. Run the Server
+### 5. Run the Server
 
 ```bash
 go run main.go
@@ -160,6 +184,8 @@ ArtfactService-go/
 ├── models/             # Data models
 │   ├── file.go
 │   └── token.go
+├── storage/            # Ceph/S3 storage integration
+│   └── storage.go
 ├── scripts/            # Utility scripts
 │   └── init_db.go     # Database initialization script
 ├── schema.sql          # SQL schema definition
@@ -187,6 +213,10 @@ go test ./...
 | Variable | Default | Description |
 |----------|---------|-------------|
 | PORT | 8080 | Server port |
+| CEPH_ACCESS_KEY | (required) | Ceph S3 access key |
+| CEPH_SECRET_KEY | (required) | Ceph S3 secret key |
+| CEPH_ENDPOINT | (required) | Ceph S3 endpoint URL |
+| CEPH_BUCKET | artifacts | Ceph S3 bucket name |
 
 ## Database Management
 
@@ -205,11 +235,19 @@ go run scripts/init_db.go
 cp files.db files.db.backup
 ```
 
+## Storage Architecture
+
+- **Metadata**: Stored in SQLite database (`files.db`)
+- **File Content**: Stored in Ceph S3-compatible object storage
+- Files are stored with UUID as the object key in Ceph
+- Original filename and metadata are preserved in the database
+
 ## Notes
 
 - The `files.db` SQLite database file is excluded from version control (see `.gitignore`)
-- Uploaded files are stored in the `uploads/` directory (also excluded from git)
+- Uploaded files are stored in Ceph object storage (not local filesystem)
 - Always run the database initialization script before first use
+- Ensure Ceph credentials are properly configured before starting the server
 
 ## License
 
