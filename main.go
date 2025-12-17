@@ -32,9 +32,9 @@ func main() {
 	r := gin.Default()
 
 	// Routes
-	r.POST("/artifacts/innerop/upload", handlers.UploadFile)
-	r.GET("/artifacts/innerop/:id", handlers.DownloadFile)
+	r.POST("/artifact-service/v1/artifacts/", handlers.UploadFile)
 	r.GET("/artifact-service/v1/artifacts/", handlers.ListArtifacts)
+	r.GET("/artifact-service/v1/artifacts/:uuid/action/downloadFile", handlers.DownloadFile)
 	
 	// Presigned URL routes
 	r.POST("/genPresignedURL", handlers.GenPresignedURL)

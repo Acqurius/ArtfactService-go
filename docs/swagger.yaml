@@ -1,5 +1,18 @@
 basePath: /
 definitions:
+  models.Artifact:
+    properties:
+      content_type:
+        type: string
+      created_at:
+        type: string
+      filename:
+        type: string
+      size:
+        type: integer
+      uuid:
+        type: string
+    type: object
   models.GenTokenRequest:
     properties:
       allowed_cidr:
@@ -22,6 +35,92 @@ info:
   title: File Upload API
   version: "1.0"
 paths:
+  /artifact-service/v1/artifacts/:
+    get:
+      description: Retrieves a list of all uploaded artifacts with their metadata
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Artifact'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all artifacts
+      tags:
+      - files
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads a file and saves metadata to the database
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload a file
+      tags:
+      - files
+  /artifact-service/v1/artifacts/{uuid}/action/downloadFile:
+    get:
+      description: Downloads a file by its UUID
+      parameters:
+      - description: File UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Download a file
+      tags:
+      - files
   /artifacts/{token}:
     get:
       description: Download a file using a token, enforcing constraints
@@ -59,72 +158,6 @@ paths:
       summary: Download file with Presigned URL
       tags:
       - tokens
-  /artifacts/innerop/{id}:
-    get:
-      description: Downloads a file by its ID
-      parameters:
-      - description: File ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/octet-stream
-      responses:
-        "200":
-          description: OK
-          schema:
-            type: file
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Download a file
-      tags:
-      - files
-  /artifacts/innerop/upload:
-    post:
-      consumes:
-      - multipart/form-data
-      description: Uploads a file and saves metadata to the database
-      parameters:
-      - description: File to upload
-        in: formData
-        name: file
-        required: true
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Upload a file
-      tags:
-      - files
   /genPresignedURL:
     post:
       consumes:

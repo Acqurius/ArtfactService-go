@@ -116,7 +116,7 @@ Stores presigned URL tokens with access control.
 
 ### Upload File
 ```http
-POST /artifacts/innerop/upload
+POST /artifact-service/v1/artifacts/
 Content-Type: multipart/form-data
 
 file: <binary>
@@ -159,6 +159,16 @@ GET /artifact-service/v1/artifacts/
 ```
 
 **Note:** Returns an empty array `[]` if no artifacts exist.
+
+### Download File
+```http
+GET /artifact-service/v1/artifacts/{uuid}/action/downloadFile
+```
+
+**Parameters:**
+- `uuid` (path) - The UUID of the artifact to download
+
+**Response:** Binary file content with appropriate headers
 
 ### Generate Presigned URL
 ```http

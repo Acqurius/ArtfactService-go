@@ -22,7 +22,7 @@ import (
 // @Success      200  {object}  map[string]string
 // @Failure      400  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
-// @Router       /artifacts/innerop/upload [post]
+// @Router       /artifact-service/v1/artifacts/ [post]
 func UploadFile(c *gin.Context) {
 	// Single file
 	file, err := c.FormFile("file")

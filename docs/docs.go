@@ -15,7 +15,37 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/artifacts/innerop/upload": {
+        "/artifact-service/v1/artifacts/": {
+            "get": {
+                "description": "Retrieves a list of all uploaded artifacts with their metadata",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "files"
+                ],
+                "summary": "List all artifacts",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Artifact"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Uploads a file and saves metadata to the database",
                 "consumes": [
@@ -68,9 +98,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/artifacts/innerop/{id}": {
+        "/artifact-service/v1/artifacts/{uuid}/action/downloadFile": {
             "get": {
-                "description": "Downloads a file by its ID",
+                "description": "Downloads a file by its UUID",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -81,8 +111,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File ID",
-                        "name": "id",
+                        "description": "File UUID",
+                        "name": "uuid",
                         "in": "path",
                         "required": true
                     }
@@ -228,6 +258,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "models.Artifact": {
+            "type": "object",
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
         "models.GenTokenRequest": {
             "type": "object",
             "required": [

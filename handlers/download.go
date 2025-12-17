@@ -14,19 +14,19 @@ import (
 
 // DownloadFile godoc
 // @Summary      Download a file
-// @Description  Downloads a file by its ID
+// @Description  Downloads a file by its UUID
 // @Tags         files
 // @Produce      octet-stream
-// @Param        id   path      string  true  "File ID"
+// @Param        uuid   path      string  true  "File UUID"
 // @Success      200  {file}    file
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
-// @Router       /artifacts/innerop/{id} [get]
+// @Router       /artifact-service/v1/artifacts/{uuid}/action/downloadFile [get]
 func DownloadFile(c *gin.Context) {
-	id := c.Param("id")
+	uuid := c.Param("uuid")
 
 	var metadata models.Artifact
-	row := db.DB.QueryRow("SELECT uuid, filename, content_type, size FROM Artifacts WHERE uuid = ?", id)
+	row := db.DB.QueryRow("SELECT uuid, filename, content_type, size FROM Artifacts WHERE uuid = ?", uuid)
 	err := row.Scan(&metadata.UUID, &metadata.Filename, &metadata.ContentType, &metadata.Size)
 
 	if err != nil {
@@ -41,7 +41,7 @@ func DownloadFile(c *gin.Context) {
 
 
 	// Download file from Ceph
-	fileReader, err := storage.DownloadFile(id)
+	fileReader, err := storage.DownloadFile(uuid)
 	if err != nil {
 		log.Println("Failed to download file from Ceph:", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "File content not found"})
