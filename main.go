@@ -34,6 +34,7 @@ func main() {
 	// Routes
 	r.POST("/artifacts/innerop/upload", handlers.UploadFile)
 	r.GET("/artifacts/innerop/:id", handlers.DownloadFile)
+	r.GET("/artifact-service/v1/artifacts/", handlers.ListArtifacts)
 	
 	// Presigned URL routes
 	r.POST("/genPresignedURL", handlers.GenPresignedURL)

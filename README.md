@@ -133,10 +133,32 @@ file: <binary>
 }
 ```
 
-### Download File
+### List All Artifacts
 ```http
-GET /artifacts/innerop/:id
+GET /artifact-service/v1/artifacts/
 ```
+
+**Response:**
+```json
+[
+  {
+    "uuid": "550e8400-e29b-41d4-a716-446655440000",
+    "filename": "example.pdf",
+    "content_type": "application/pdf",
+    "size": 1024,
+    "created_at": "2024-01-01T00:00:00Z"
+  },
+  {
+    "uuid": "660e8400-e29b-41d4-a716-446655440001",
+    "filename": "document.docx",
+    "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "size": 2048,
+    "created_at": "2024-01-02T00:00:00Z"
+  }
+]
+```
+
+**Note:** Returns an empty array `[]` if no artifacts exist.
 
 ### Generate Presigned URL
 ```http
