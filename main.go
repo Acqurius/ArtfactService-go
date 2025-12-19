@@ -35,6 +35,7 @@ func main() {
 	r.POST("/artifact-service/v1/artifacts/", handlers.UploadFile)
 	r.GET("/artifact-service/v1/artifacts/", handlers.ListArtifacts)
 	r.GET("/artifact-service/v1/artifacts/:uuid/action/downloadFile", handlers.DownloadFile)
+	r.GET("/artifact-service/v1/storage/usage", handlers.GetStorageUsage)
 	
 	// Presigned URL routes
 	r.POST("/genPresignedURL", handlers.GenPresignedURL)

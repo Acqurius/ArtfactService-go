@@ -145,6 +145,35 @@ const docTemplate = `{
                 }
             }
         },
+        "/artifact-service/v1/storage/usage": {
+            "get": {
+                "description": "Retrieves current storage usage including total space, used space, remaining space, and file count.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "storage"
+                ],
+                "summary": "Get storage usage statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.StorageUsage"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/artifacts/{token}": {
             "get": {
                 "description": "Download a file using a token, enforcing constraints",
@@ -258,6 +287,26 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "handlers.StorageUsage": {
+            "type": "object",
+            "properties": {
+                "file_count": {
+                    "type": "integer"
+                },
+                "remaining_space": {
+                    "type": "integer"
+                },
+                "total_space": {
+                    "type": "integer"
+                },
+                "usage_percent": {
+                    "type": "number"
+                },
+                "used_space": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Artifact": {
             "type": "object",
             "properties": {

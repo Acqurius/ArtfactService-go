@@ -170,6 +170,22 @@ GET /artifact-service/v1/artifacts/{uuid}/action/downloadFile
 
 **Response:** Binary file content with appropriate headers
 
+### Storage Usage (New)
+```http
+GET /artifact-service/v1/storage/usage
+```
+
+**Response:**
+```json
+{
+  "total_space": 10737418240,
+  "used_space": 35930,
+  "remaining_space": 10737382310,
+  "usage_percent": 0.00033,
+  "file_count": 3
+}
+```
+
 ### Generate Presigned URL
 ```http
 POST /genPresignedURL
