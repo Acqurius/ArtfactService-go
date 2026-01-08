@@ -70,11 +70,11 @@ func GenPresignedURL(c *gin.Context) {
 
 // DownloadFileWithToken godoc
 // @Summary      Download file with Presigned URL
-// @Description  Download a file using a token, enforcing constraints
+// @Description  Download a file using a token, enforcing constraints. Returns a 302 redirect to S3 presigned URL for direct download.
 // @Tags         tokens
 // @Produce      octet-stream
 // @Param        token path string true "Access Token"
-// @Success      200  {file}    file
+// @Success      302  {string}  string  "Redirect to S3 presigned URL"
 // @Failure      403  {object}  map[string]string
 // @Failure      404  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
@@ -147,18 +147,14 @@ func DownloadFileWithToken(c *gin.Context) {
 		return
 	}
 
-	// Download file from Ceph
-	fileReader, err := storage.DownloadFile(t.ArtifactUUID)
+	// Generate presigned URL for direct S3 download (expires in 15 minutes)
+	presignedURL, err := storage.GeneratePresignedURL(t.ArtifactUUID, 15)
 	if err != nil {
-		log.Println("Failed to download file from Ceph:", err)
-		c.JSON(http.StatusNotFound, gin.H{"error": "File content not found"})
+		log.Println("Failed to generate presigned URL:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate download URL"})
 		return
 	}
-	defer fileReader.Close()
 
-	// Stream file to response
-	c.Header("Content-Description", "File Transfer")
-	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Header("Content-Type", contentType)
-	c.DataFromReader(http.StatusOK, -1, contentType, fileReader, nil)
+	// Return 302 redirect to the presigned URL
+	c.Redirect(http.StatusFound, presignedURL)
 }

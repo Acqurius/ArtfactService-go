@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -113,4 +114,24 @@ func DeleteFile(uuid string) error {
 // GetBucketName returns the configured bucket name
 func GetBucketName() string {
 	return bucketName
+}
+
+// GeneratePresignedURL generates a presigned URL for downloading a file from Ceph/S3
+func GeneratePresignedURL(uuid string, expirationMinutes int) (string, error) {
+	if expirationMinutes <= 0 {
+		expirationMinutes = 15 // Default to 15 minutes
+	}
+
+	req, _ := s3Client.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(uuid),
+	})
+
+	urlStr, err := req.Presign(time.Duration(expirationMinutes) * time.Minute)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+
+	log.Printf("Generated presigned URL for uuid=%s, expires in %d minutes", uuid, expirationMinutes)
+	return urlStr, nil
 }
