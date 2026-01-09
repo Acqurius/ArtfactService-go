@@ -31,15 +31,35 @@ func main() {
 
 	r := gin.Default()
 
+	// CORS middleware
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
 	// Routes
 	r.POST("/artifact-service/v1/artifacts/", handlers.UploadFile)
 	r.GET("/artifact-service/v1/artifacts/", handlers.ListArtifacts)
 	r.GET("/artifact-service/v1/artifacts/:uuid/action/downloadFile", handlers.DownloadFile)
 	r.GET("/artifact-service/v1/storage/usage", handlers.GetStorageUsage)
 	
-	// Presigned URL routes
-	r.POST("/genPresignedURL", handlers.GenPresignedURL)
+	// Token generation routes
+	r.POST("/genDownloadPresignedURL", handlers.GenDownloadPresignedURL)
+	r.POST("/genUploadPresignedURL", handlers.GenUploadPresignedURL)
+	
+	// Token-based file access routes
 	r.GET("/artifacts/:token", handlers.DownloadFileWithToken)
+	r.POST("/artifacts/upload/:token", handlers.UploadFileWithToken)
+	
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Run server

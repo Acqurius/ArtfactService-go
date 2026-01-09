@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artifact Client - Usage Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 1.1em;
+    }
+
+    .content {
+      padding: 40px;
+    }
+
+    .section {
+      margin-bottom: 40px;
+    }
+
+    .section h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+      font-size: 1.5em;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 10px;
+    }
+
+    .upload-area {
+      border: 3px dashed #667eea;
+      border-radius: 15px;
+      padding: 40px;
+      text-align: center;
+      background: #f8f9ff;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .upload-area:hover {
+      border-color: #764ba2;
+      background: #f0f1ff;
+      transform: translateY(-2px);
+    }
+
+    .upload-area.dragover {
+      border-color: #764ba2;
+      background: #e8e9ff;
+      transform: scale(1.02);
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .upload-icon {
+      font-size: 3em;
+      margin-bottom: 15px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 25px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 15px;
+      overflow: hidden;
+      margin: 20px 0;
+      display: none;
+    }
+
+    .progress-bar.active {
+      display: block;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+
+    .result {
+      background: #f0f9ff;
+      border-left: 4px solid #667eea;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .result.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .result code {
+      background: #e0e0e0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1em;
+      transition: border-color 0.3s ease;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .file-list {
+      margin-top: 20px;
+    }
+
+    .file-item {
+      background: #f8f9ff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .file-size {
+      color: #666;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 Artifact Client</h1>
+      <p>Token-based File Upload & Download</p>
+    </div>
+
+    <div class="content">
+      <!-- Upload Section -->
+      <div class="section">
+        <h2>📤 Upload File</h2>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">📁</div>
+          <p style="font-size: 1.2em; margin-bottom: 10px;">拖曳檔案到這裡或點擊選擇</p>
+          <p style="color: #666;">支援所有檔案類型</p>
+          <input type="file" id="fileInput" class="file-input">
+        </div>
+
+        <div class="progress-bar" id="uploadProgress">
+          <div class="progress-fill" id="uploadProgressFill">0%</div>
+        </div>
+
+        <div class="result" id="uploadResult">
+          <h3>✅ 上傳成功！</h3>
+          <p><strong>UUID:</strong> <code id="uploadedUuid"></code></p>
+          <p><strong>檔名:</strong> <span id="uploadedFilename"></span></p>
+          <p><strong>大小:</strong> <span id="uploadedSize"></span></p>
+        </div>
+      </div>
+
+      <!-- Download Section -->
+      <div class="section">
+        <h2>📥 Download File</h2>
+
+        <div class="input-group">
+          <label for="downloadUuid">Artifact UUID</label>
+          <input type="text" id="downloadUuid" placeholder="輸入要下載的 artifact UUID">
+        </div>
+
+        <div class="input-group">
+          <label for="downloadFilename">檔案名稱 (選填)</label>
+          <input type="text" id="downloadFilename" placeholder="下載後的檔案名稱">
+        </div>
+
+        <button class="btn" id="downloadBtn">下載檔案</button>
+
+        <div class="result" id="downloadResult">
+          <h3>✅ 下載完成！</h3>
+          <p>檔案已儲存到您的下載資料夾</p>
+        </div>
+      </div>
+
+      <!-- Recently Uploaded Files -->
+      <div class="section">
+        <h2>📋 最近上傳的檔案</h2>
+        <div class="file-list" id="fileList">
+          <p style="color: #666; text-align: center;">尚無上傳記錄</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="artifact-client.js"></script>
+  <script>
+    // Initialize client
+    const client = new ArtifactClient('http://10.188.157.24:8080');
+
+    // Store uploaded files
+    let uploadedFiles = [];
+
+    // Upload area elements
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadProgressFill = document.getElementById('uploadProgressFill');
+    const uploadResult = document.getElementById('uploadResult');
+
+    // Download elements
+    const downloadUuid = document.getElementById('downloadUuid');
+    const downloadFilename = document.getElementById('downloadFilename');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadResult = document.getElementById('downloadResult');
+
+    // File list
+    const fileList = document.getElementById('fileList');
+
+    // Click to select file
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // File selected
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        await uploadFile(file);
+      }
+    });
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        await uploadFile(file);
+      }
+    });
+
+    // Upload file function
+    async function uploadFile(file) {
+      try {
+        // Reset UI
+        uploadResult.classList.remove('show');
+        uploadProgress.classList.add('active');
+        uploadProgressFill.style.width = '0%';
+        uploadProgressFill.textContent = '0%';
+
+        // Upload with progress
+        const result = await client.uploadFile(file, {
+          maxUploads: 5,
+          onProgress: (percent) => {
+            uploadProgressFill.style.width = percent + '%';
+            uploadProgressFill.textContent = percent + '%';
+          }
+        });
+
+        // Show result
+        uploadProgress.classList.remove('active');
+        uploadResult.classList.add('show');
+        document.getElementById('uploadedUuid').textContent = result.uuid;
+        document.getElementById('uploadedFilename').textContent = result.filename;
+        document.getElementById('uploadedSize').textContent = formatBytes(result.size);
+
+        // Add to uploaded files list
+        uploadedFiles.unshift(result);
+        updateFileList();
+
+        // Auto-fill download UUID
+        downloadUuid.value = result.uuid;
+        downloadFilename.value = result.filename;
+
+      } catch (error) {
+        alert('上傳失敗: ' + error.message);
+        uploadProgress.classList.remove('active');
+      }
+    }
+
+    // Download file
+    downloadBtn.addEventListener('click', async () => {
+      const uuid = downloadUuid.value.trim();
+      if (!uuid) {
+        alert('請輸入 Artifact UUID');
+        return;
+      }
+
+      try {
+        downloadBtn.disabled = true;
+        downloadBtn.textContent = '下載中...';
+        downloadResult.classList.remove('show');
+
+        const filename = downloadFilename.value.trim() || null;
+        await client.downloadFile(uuid, filename, {
+          maxDownloads: 3
+        });
+
+        downloadResult.classList.add('show');
+        setTimeout(() => {
+          downloadResult.classList.remove('show');
+        }, 3000);
+
+      } catch (error) {
+        alert('下載失敗: ' + error.message);
+      } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.textContent = '下載檔案';
+      }
+    });
+
+    // Update file list
+    function updateFileList() {
+      if (uploadedFiles.length === 0) {
+        fileList.innerHTML = '<p style="color: #666; text-align: center;">尚無上傳記錄</p>';
+        return;
+      }
+
+      fileList.innerHTML = uploadedFiles.map(file => `
+        <div class="file-item">
+          <div class="file-info">
+            <div class="file-name">📄 ${file.filename}</div>
+            <div class="file-size">${formatBytes(file.size)} • UUID: ${file.uuid}</div>
+          </div>
+          <button class="btn" onclick="quickDownload('${file.uuid}', '${file.filename}')">下載</button>
+        </div>
+      `).join('');
+    }
+
+    // Quick download
+    window.quickDownload = async function (uuid, filename) {
+      try {
+        await client.downloadFile(uuid, filename);
+      } catch (error) {
+        alert('下載失敗: ' + error.message);
+      }
+    };
+
+    // Format bytes
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+  </script>
+</body>
+
+</html>

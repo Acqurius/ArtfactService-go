@@ -56,7 +56,34 @@ func InitStorage() error {
 	downloader = s3manager.NewDownloader(sess)
 
 	log.Printf("Storage initialized: endpoint=%s, bucket=%s", endpoint, bucketName)
+
+	// Configure CORS for the bucket to allow direct browser uploads
+	if err := ConfigureCORS(); err != nil {
+		log.Printf("Warning: Failed to configure CORS for bucket %s: %v", bucketName, err)
+		// We don't return error here because the bucket might already exist and be configured,
+		// or we might not have permission, but we still want the service to start.
+	}
+
 	return nil
+}
+
+// ConfigureCORS configures CORS rules for the S3 bucket
+func ConfigureCORS() error {
+	_, err := s3Client.PutBucketCors(&s3.PutBucketCorsInput{
+		Bucket: aws.String(bucketName),
+		CORSConfiguration: &s3.CORSConfiguration{
+			CORSRules: []*s3.CORSRule{
+				{
+					AllowedHeaders: []*string{aws.String("*")},
+					AllowedMethods: []*string{aws.String("GET"), aws.String("PUT"), aws.String("POST"), aws.String("HEAD")},
+					AllowedOrigins: []*string{aws.String("*"), aws.String("http://10.188.157.24:8000"), aws.String("http://localhost:8000")}, // Explicitly allow frontend origin
+					ExposeHeaders:  []*string{aws.String("ETag")},
+					MaxAgeSeconds:  aws.Int64(3000),
+				},
+			},
+		},
+	})
+	return err
 }
 
 // UploadFile uploads a file to Ceph storage
@@ -133,5 +160,25 @@ func GeneratePresignedURL(uuid string, expirationMinutes int) (string, error) {
 	}
 
 	log.Printf("Generated presigned URL for uuid=%s, expires in %d minutes", uuid, expirationMinutes)
+	return urlStr, nil
+}
+
+// GeneratePresignedUploadURL generates a presigned URL for uploading a file to Ceph/S3
+func GeneratePresignedUploadURL(uuid, filename, contentType string, expirationMinutes int) (string, error) {
+	if expirationMinutes <= 0 {
+		expirationMinutes = 15 // Default to 15 minutes
+	}
+
+	req, _ := s3Client.PutObjectRequest(&s3.PutObjectInput{
+		Bucket:      aws.String(bucketName),
+		Key:         aws.String(uuid),
+	})
+
+	urlStr, err := req.Presign(time.Duration(expirationMinutes) * time.Minute)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned upload URL: %w", err)
+	}
+
+	log.Printf("Generated presigned upload URL for uuid=%s, filename=%s, expires in %d minutes", uuid, filename, expirationMinutes)
 	return urlStr, nil
 }

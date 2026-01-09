@@ -50,7 +50,7 @@ func createTable() {
 	queryTokens := `
 	CREATE TABLE IF NOT EXISTS tokens (
 		token TEXT PRIMARY KEY,
-		artifact_uuid TEXT NOT NULL,
+		artifact_uuid TEXT,
 		valid_from TIMESTAMP,
 		valid_to TIMESTAMP,
 		max_downloads BIGINT,

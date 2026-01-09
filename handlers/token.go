@@ -15,18 +15,18 @@ import (
 	"github.com/google/uuid"
 )
 
-// GenPresignedURL godoc
-// @Summary      Generate a Presigned URL
-// @Description  Generates a token for temporary file access with constraints
+// GenDownloadPresignedURL godoc
+// @Summary      Generate a Download Token
+// @Description  Generates a token for temporary file download access with constraints. Requires existing artifact UUID.
 // @Tags         tokens
 // @Accept       json
 // @Produce      json
-// @Param        request body models.GenTokenRequest true "Token constraints"
+// @Param        request body models.GenTokenRequest true "Token constraints with artifact UUID"
 // @Success      200  {object}  map[string]string
 // @Failure      400  {object}  map[string]string
 // @Failure      500  {object}  map[string]string
-// @Router       /genPresignedURL [post]
-func GenPresignedURL(c *gin.Context) {
+// @Router       /genDownloadPresignedURL [post]
+func GenDownloadPresignedURL(c *gin.Context) {
 	var req models.GenTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -55,7 +55,7 @@ func GenPresignedURL(c *gin.Context) {
 		return
 	}
 
-	// Generate URL
+	// Generate download URL
 	scheme := "http"
 	if c.Request.TLS != nil {
 		scheme = "https"
@@ -65,6 +65,59 @@ func GenPresignedURL(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"token":         token,
 		"presigned_url": presignedURL,
+		"type":          "download",
+	})
+}
+
+// GenUploadPresignedURL godoc
+// @Summary      Generate an Upload Token
+// @Description  Generates a token for temporary file upload access with constraints. No artifact UUID needed.
+// @Tags         tokens
+// @Accept       json
+// @Produce      json
+// @Param        request body models.GenUploadTokenRequest true "Token constraints without artifact UUID"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /genUploadPresignedURL [post]
+func GenUploadPresignedURL(c *gin.Context) {
+	var req struct {
+		ValidFrom    *time.Time `json:"valid_from"`
+		ValidTo      *time.Time `json:"valid_to"`
+		MaxUploads   *int       `json:"max_uploads"`
+		AllowedCIDR  string     `json:"allowed_cidr"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Generate Token
+	token := uuid.New().String()
+
+	// Insert into DB with NULL artifact_uuid (will be set during upload)
+	_, err := db.DB.Exec(`
+		INSERT INTO tokens (token, artifact_uuid, valid_from, valid_to, max_downloads, allowed_cidr)
+		VALUES (?, NULL, ?, ?, ?, ?)`,
+		token, req.ValidFrom, req.ValidTo, req.MaxUploads, req.AllowedCIDR)
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	// Generate upload URL
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	uploadURL := scheme + "://" + c.Request.Host + "/artifacts/upload/" + token
+
+	c.JSON(http.StatusOK, gin.H{
+		"token":      token,
+		"upload_url": uploadURL,
+		"type":       "upload",
 	})
 }
 
@@ -158,3 +211,122 @@ func DownloadFileWithToken(c *gin.Context) {
 	// Return 302 redirect to the presigned URL
 	c.Redirect(http.StatusFound, presignedURL)
 }
+
+// UploadFileWithToken godoc
+// @Summary      Upload file with Token
+// @Description  Generate a presigned upload URL using a token, enforcing constraints. Client uploads directly to S3.
+// @Tags         tokens
+// @Accept       json
+// @Produce      json
+// @Param        token path string true "Upload Token"
+// @Param        request body models.UploadRequest true "Upload metadata"
+// @Success      200  {object}  map[string]string
+// @Failure      403  {object}  map[string]string
+// @Failure      404  {object}  map[string]string
+// @Failure      500  {object}  map[string]string
+// @Router       /artifacts/upload/{token} [post]
+func UploadFileWithToken(c *gin.Context) {
+	token := c.Param("token")
+
+	var uploadReq struct {
+		Filename    string `json:"filename" binding:"required"`
+		ContentType string `json:"content_type" binding:"required"`
+		Size        int64  `json:"size" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&uploadReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var t models.Token
+	var dbArtifactUUID sql.NullString
+
+	// Query token details
+	row := db.DB.QueryRow(`
+		SELECT token, artifact_uuid, valid_from, valid_to, max_downloads, current_downloads, allowed_cidr
+		FROM tokens
+		WHERE token = ?`, token)
+	
+	err := row.Scan(&t.Token, &dbArtifactUUID, &t.ValidFrom, &t.ValidTo, &t.MaxDownloads, &t.CurrentDownloads, &t.AllowedCIDR)
+	if dbArtifactUUID.Valid {
+		t.ArtifactUUID = dbArtifactUUID.String
+	}
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Invalid or expired token"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	now := time.Now()
+
+	// 1. Time Validation
+	if t.ValidFrom != nil && now.Before(*t.ValidFrom) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Token not yet valid"})
+		return
+	}
+	if t.ValidTo != nil && now.After(*t.ValidTo) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Token expired"})
+		return
+	}
+
+	// 2. Count Validation (reusing max_downloads for upload limit)
+	if t.MaxDownloads != nil && t.CurrentDownloads >= *t.MaxDownloads {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Upload limit reached"})
+		return
+	}
+
+	// 3. IP Validation
+	if t.AllowedCIDR != "" {
+		clientIP := c.ClientIP()
+		_, ipNet, err := net.ParseCIDR(t.AllowedCIDR)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid CIDR configuration"})
+			return
+		}
+		ip := net.ParseIP(clientIP)
+		if ip == nil || !ipNet.Contains(ip) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "IP not allowed"})
+			return
+		}
+	}
+
+	// Generate UUID for the new artifact
+	artifactUUID := uuid.New().String()
+
+	// Generate presigned upload URL (expires in 15 minutes)
+	presignedURL, err := storage.GeneratePresignedUploadURL(artifactUUID, uploadReq.Filename, uploadReq.ContentType, 15)
+	if err != nil {
+		log.Println("Failed to generate presigned upload URL:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate upload URL"})
+		return
+	}
+
+	// Save artifact metadata to database
+	_, err = db.DB.Exec(`
+		INSERT INTO Artifacts (uuid, filename, content_type, size)
+		VALUES (?, ?, ?, ?)`,
+		artifactUUID, uploadReq.Filename, uploadReq.ContentType, uploadReq.Size)
+	if err != nil {
+		log.Println("Failed to insert artifact metadata:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+
+	// Increment upload count
+	_, err = db.DB.Exec("UPDATE tokens SET current_downloads = current_downloads + 1 WHERE token = ?", token)
+	if err != nil {
+		log.Println("Failed to update upload stats:", err)
+		// Continue anyway, the upload URL is already generated
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"presigned_url": presignedURL,
+		"uuid":          artifactUUID,
+		"expires_in":    "15 minutes",
+	})
+}
+

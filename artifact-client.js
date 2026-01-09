@@ -1,0 +1,245 @@
+/**
+ * Artifact Service Client
+ * 
+ * A simple JavaScript client for uploading and downloading files using token-based presigned URLs.
+ * This client handles all the complexity of token generation and presigned URL management.
+ * 
+ * @example
+ * const client = new ArtifactClient('http://localhost:8080');
+ * 
+ * // Upload a file
+ * const file = document.getElementById('fileInput').files[0];
+ * const result = await client.uploadFile(file, { maxUploads: 5 });
+ * console.log('Uploaded:', result.uuid);
+ * 
+ * // Download a file
+ * await client.downloadFile(artifactUuid, 'downloaded.txt', { maxDownloads: 3 });
+ */
+class ArtifactClient {
+    /**
+     * Create an ArtifactClient instance
+     * @param {string} baseUrl - Base URL of the artifact service (e.g., 'http://localhost:8080')
+     */
+    constructor(baseUrl) {
+        this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    }
+
+    /**
+     * Upload a file using token-based presigned URL
+     * 
+     * @param {File} file - The file to upload (from input[type="file"])
+     * @param {Object} options - Upload options
+     * @param {number} [options.maxUploads=1] - Maximum number of uploads allowed with this token
+     * @param {string} [options.validFrom] - ISO 8601 timestamp when token becomes valid
+     * @param {string} [options.validTo] - ISO 8601 timestamp when token expires
+     * @param {string} [options.allowedCIDR] - CIDR notation for IP restriction (e.g., '192.168.1.0/24')
+     * @param {Function} [options.onProgress] - Progress callback (percent) => void
+     * 
+     * @returns {Promise<Object>} Upload result with uuid, filename, size, contentType
+     * 
+     * @example
+     * const file = document.getElementById('fileInput').files[0];
+     * const result = await client.uploadFile(file, {
+     *   maxUploads: 5,
+     *   onProgress: (percent) => console.log(`Upload: ${percent}%`)
+     * });
+     * console.log('File UUID:', result.uuid);
+     */
+    async uploadFile(file, options = {}) {
+        const {
+            maxUploads = 1,
+            validFrom = null,
+            validTo = null,
+            allowedCIDR = null,
+            onProgress = null
+        } = options;
+
+        try {
+            // Step 1: Generate upload token
+            const tokenResponse = await fetch(`${this.baseUrl}/genUploadPresignedURL`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    max_uploads: maxUploads,
+                    valid_from: validFrom,
+                    valid_to: validTo,
+                    allowed_cidr: allowedCIDR
+                })
+            });
+
+            if (!tokenResponse.ok) {
+                throw new Error(`Failed to generate upload token: ${tokenResponse.statusText}`);
+            }
+
+            const { token, upload_url } = await tokenResponse.json();
+
+            // Step 2: Request presigned upload URL
+            const presignedResponse = await fetch(upload_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: file.name,
+                    content_type: file.type || 'application/octet-stream',
+                    size: file.size
+                })
+            });
+
+            if (!presignedResponse.ok) {
+                throw new Error(`Failed to get presigned URL: ${presignedResponse.statusText}`);
+            }
+
+            const { presigned_url, uuid } = await presignedResponse.json();
+
+            // Step 3: Upload file directly to S3
+            await this._uploadToS3(presigned_url, file, file.type, onProgress);
+
+            return {
+                uuid,
+                filename: file.name,
+                size: file.size,
+                contentType: file.type || 'application/octet-stream',
+                token
+            };
+
+        } catch (error) {
+            throw new Error(`Upload failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Download a file using token-based presigned URL
+     * 
+     * @param {string} artifactUuid - UUID of the artifact to download
+     * @param {string} [filename] - Optional filename for the downloaded file
+     * @param {Object} options - Download options
+     * @param {number} [options.maxDownloads=1] - Maximum number of downloads allowed with this token
+     * @param {string} [options.validFrom] - ISO 8601 timestamp when token becomes valid
+     * @param {string} [options.validTo] - ISO 8601 timestamp when token expires
+     * @param {string} [options.allowedCIDR] - CIDR notation for IP restriction
+     * 
+     * @returns {Promise<void>} Resolves when download completes
+     * 
+     * @example
+     * await client.downloadFile('artifact-uuid-here', 'myfile.pdf', {
+     *   maxDownloads: 3
+     * });
+     */
+    async downloadFile(artifactUuid, filename = null, options = {}) {
+        const {
+            maxDownloads = 1,
+            validFrom = null,
+            validTo = null,
+            allowedCIDR = null
+        } = options;
+
+        try {
+            // Step 1: Generate download token
+            const tokenResponse = await fetch(`${this.baseUrl}/genDownloadPresignedURL`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    artifact_uuid: artifactUuid,
+                    max_downloads: maxDownloads,
+                    valid_from: validFrom,
+                    valid_to: validTo,
+                    allowed_cidr: allowedCIDR
+                })
+            });
+
+            if (!tokenResponse.ok) {
+                throw new Error(`Failed to generate download token: ${tokenResponse.statusText}`);
+            }
+
+            const { presigned_url } = await tokenResponse.json();
+
+            // Step 2: Download file (browser will follow 302 redirect automatically)
+            const response = await fetch(presigned_url);
+
+            if (!response.ok) {
+                throw new Error(`Download failed: ${response.statusText}`);
+            }
+
+            // Step 3: Trigger browser download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || artifactUuid;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (error) {
+            throw new Error(`Download failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get artifact metadata
+     * 
+     * @param {string} artifactUuid - UUID of the artifact
+     * @returns {Promise<Object>} Artifact metadata
+     * 
+     * @example
+     * const metadata = await client.getArtifactMetadata('artifact-uuid');
+     * console.log(metadata.filename, metadata.size);
+     */
+    async getArtifactMetadata(artifactUuid) {
+        const response = await fetch(`${this.baseUrl}/artifact-service/v1/artifacts/`);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch artifacts: ${response.statusText}`);
+        }
+
+        const artifacts = await response.json();
+        const artifact = artifacts.find(a => a.uuid === artifactUuid);
+
+        if (!artifact) {
+            throw new Error(`Artifact not found: ${artifactUuid}`);
+        }
+
+        return artifact;
+    }
+
+    /**
+     * Internal method to upload file to S3 with progress tracking
+     * @private
+     */
+    async _uploadToS3(presignedUrl, file, contentType, onProgress) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+
+            // Track upload progress
+            if (onProgress) {
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        onProgress(percent);
+                    }
+                });
+            }
+
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    resolve();
+                } else {
+                    reject(new Error(`S3 upload failed with status ${xhr.status}`));
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                reject(new Error('S3 upload failed'));
+            });
+
+            xhr.open('PUT', presignedUrl);
+            xhr.setRequestHeader('Content-Type', contentType);
+            xhr.send(file);
+        });
+    }
+}
+
+// Export for use in modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = ArtifactClient;
+}
