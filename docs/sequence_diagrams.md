@@ -58,6 +58,8 @@ Frontend -> Client: Upload Complete
 @enduml
 ```
 
+![Token-Based Upload Flow](images/token-based_upload_flow.png)
+
 ## 2. Download Flow (DownloadByToken)
 
 ```plantuml
@@ -114,3 +116,5 @@ deactivate S3
 
 @enduml
 ```
+
+![Token-Based Download Flow](images/token-based_download_flow.png)
