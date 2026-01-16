@@ -41,6 +41,30 @@ definitions:
     required:
     - artifact_uuid
     type: object
+  models.GenUploadTokenRequest:
+    properties:
+      allowed_cidr:
+        type: string
+      max_uploads:
+        type: integer
+      valid_from:
+        type: string
+      valid_to:
+        type: string
+    type: object
+  models.UploadRequest:
+    properties:
+      content_type:
+        type: string
+      filename:
+        type: string
+      size:
+        type: integer
+    required:
+    - content_type
+    - filename
+    - size
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -103,6 +127,39 @@ paths:
       summary: Upload a file
       tags:
       - files
+  /artifact-service/v1/artifacts/{uuid}:
+    delete:
+      description: Deletes an artifact by its UUID from both database and storage
+      parameters:
+      - description: File UUID
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Delete an artifact
+      tags:
+      - files
   /artifact-service/v1/artifacts/{uuid}/action/downloadFile:
     get:
       description: Downloads a file by its UUID
@@ -156,7 +213,8 @@ paths:
       - storage
   /artifacts/{token}:
     get:
-      description: Download a file using a token, enforcing constraints
+      description: Download a file using a token, enforcing constraints. Returns a
+        302 redirect to S3 presigned URL for direct download.
       parameters:
       - description: Access Token
         in: path
@@ -166,10 +224,10 @@ paths:
       produces:
       - application/octet-stream
       responses:
-        "200":
-          description: OK
+        "302":
+          description: Redirect to S3 presigned URL
           schema:
-            type: file
+            type: string
         "403":
           description: Forbidden
           schema:
@@ -191,13 +249,62 @@ paths:
       summary: Download file with Presigned URL
       tags:
       - tokens
-  /genPresignedURL:
+  /artifacts/upload/{token}:
     post:
       consumes:
       - application/json
-      description: Generates a token for temporary file access with constraints
+      description: Generate a presigned upload URL using a token, enforcing constraints.
+        Client uploads directly to S3.
       parameters:
-      - description: Token constraints
+      - description: Upload Token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Upload metadata
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UploadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Upload file with Token
+      tags:
+      - tokens
+  /genDownloadPresignedURL:
+    post:
+      consumes:
+      - application/json
+      description: Generates a token for temporary file download access with constraints.
+        Requires existing artifact UUID.
+      parameters:
+      - description: Token constraints with artifact UUID
         in: body
         name: request
         required: true
@@ -224,7 +331,44 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Generate a Presigned URL
+      summary: Generate a Download Token
+      tags:
+      - tokens
+  /genUploadPresignedURL:
+    post:
+      consumes:
+      - application/json
+      description: Generates a token for temporary file upload access with constraints.
+        No artifact UUID needed.
+      parameters:
+      - description: Token constraints without artifact UUID
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.GenUploadTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Generate an Upload Token
       tags:
       - tokens
 swagger: "2.0"

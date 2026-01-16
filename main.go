@@ -50,6 +50,7 @@ func main() {
 	r.POST("/artifact-service/v1/artifacts/", handlers.UploadFile)
 	r.GET("/artifact-service/v1/artifacts/", handlers.ListArtifacts)
 	r.GET("/artifact-service/v1/artifacts/:uuid/action/downloadFile", handlers.DownloadFile)
+	r.DELETE("/artifact-service/v1/artifacts/:uuid", handlers.DeleteArtifact)
 	r.GET("/artifact-service/v1/storage/usage", handlers.GetStorageUsage)
 	
 	// Token generation routes

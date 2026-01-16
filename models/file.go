@@ -11,3 +11,9 @@ type Artifact struct {
 	Size        int64     `json:"size"`
 	CreatedAt   time.Time `json:"created_at"`
 }
+
+type UploadRequest struct {
+	Filename    string `json:"filename" binding:"required"`
+	ContentType string `json:"content_type" binding:"required"`
+	Size        int64  `json:"size" binding:"required"`
+}

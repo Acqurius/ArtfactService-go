@@ -98,6 +98,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/artifact-service/v1/artifacts/{uuid}": {
+            "delete": {
+                "description": "Deletes an artifact by its UUID from both database and storage",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "files"
+                ],
+                "summary": "Delete an artifact",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "File UUID",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/artifact-service/v1/artifacts/{uuid}/action/downloadFile": {
             "get": {
                 "description": "Downloads a file by its UUID",
@@ -174,30 +224,45 @@ const docTemplate = `{
                 }
             }
         },
-        "/artifacts/{token}": {
-            "get": {
-                "description": "Download a file using a token, enforcing constraints",
+        "/artifacts/upload/{token}": {
+            "post": {
+                "description": "Generate a presigned upload URL using a token, enforcing constraints. Client uploads directly to S3.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
-                    "application/octet-stream"
+                    "application/json"
                 ],
                 "tags": [
                     "tokens"
                 ],
-                "summary": "Download file with Presigned URL",
+                "summary": "Upload file with Token",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Access Token",
+                        "description": "Upload Token",
                         "name": "token",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Upload metadata",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UploadRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "file"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "403": {
@@ -230,9 +295,65 @@ const docTemplate = `{
                 }
             }
         },
-        "/genPresignedURL": {
+        "/artifacts/{token}": {
+            "get": {
+                "description": "Download a file using a token, enforcing constraints. Returns a 302 redirect to S3 presigned URL for direct download.",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Download file with Presigned URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Access Token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to S3 presigned URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/genDownloadPresignedURL": {
             "post": {
-                "description": "Generates a token for temporary file access with constraints",
+                "description": "Generates a token for temporary file download access with constraints. Requires existing artifact UUID.",
                 "consumes": [
                     "application/json"
                 ],
@@ -242,15 +363,70 @@ const docTemplate = `{
                 "tags": [
                     "tokens"
                 ],
-                "summary": "Generate a Presigned URL",
+                "summary": "Generate a Download Token",
                 "parameters": [
                     {
-                        "description": "Token constraints",
+                        "description": "Token constraints with artifact UUID",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/models.GenTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/genUploadPresignedURL": {
+            "post": {
+                "description": "Generates a token for temporary file upload access with constraints. No artifact UUID needed.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tokens"
+                ],
+                "summary": "Generate an Upload Token",
+                "parameters": [
+                    {
+                        "description": "Token constraints without artifact UUID",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.GenUploadTokenRequest"
                         }
                     }
                 ],
@@ -347,6 +523,42 @@ const docTemplate = `{
                 },
                 "valid_to": {
                     "type": "string"
+                }
+            }
+        },
+        "models.GenUploadTokenRequest": {
+            "type": "object",
+            "properties": {
+                "allowed_cidr": {
+                    "type": "string"
+                },
+                "max_uploads": {
+                    "type": "integer"
+                },
+                "valid_from": {
+                    "type": "string"
+                },
+                "valid_to": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.UploadRequest": {
+            "type": "object",
+            "required": [
+                "content_type",
+                "filename",
+                "size"
+            ],
+            "properties": {
+                "content_type": {
+                    "type": "string"
+                },
+                "filename": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
                 }
             }
         }
