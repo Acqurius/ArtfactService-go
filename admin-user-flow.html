@@ -239,7 +239,11 @@
                 <div class="progress-fill" id="progressFill"></div>
             </div>
 
-            <button onclick="performUpload()">Upload Now</button>
+            <div style="display: flex; gap: 10px;">
+                <button id="uploadBtn" onclick="performUpload()">Upload Now</button>
+                <button id="cancelBtn" onclick="cancelUpload()"
+                    style="background: #ef4444; display: none;">Cancel</button>
+            </div>
 
             <div id="uploadResult" class="result-box" style="display:none; color: green;">
                 ✅ Upload Successful!<br>
@@ -297,6 +301,7 @@
         // --- User Functions ---
 
         let selectedFile = null;
+        let uploadController = null;
 
         function handleFileSelect(input) {
             if (input.files.length > 0) {
@@ -312,21 +317,45 @@
             const progressBar = document.getElementById('progressBar');
             const progressFill = document.getElementById('progressFill');
             const resultBox = document.getElementById('uploadResult');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
 
             progressBar.style.display = 'block';
             resultBox.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            cancelBtn.style.display = 'block';
+
+            // Create new AbortController
+            uploadController = new AbortController();
 
             try {
                 const result = await client.uploadFileWithTokenUrl(tokenUrl, selectedFile, (percent) => {
                     progressFill.style.width = percent + '%';
-                });
+                    progressFill.textContent = percent + '%';
+                }, { signal: uploadController.signal });
 
                 document.getElementById('newUuid').textContent = result.uuid;
                 resultBox.style.display = 'block';
                 // Auto-fill the admin uuid field for convenience
                 document.getElementById('artifactUuid').value = result.uuid;
             } catch (err) {
-                alert('Upload failed: ' + err.message);
+                if (err.name === 'AbortError') {
+                    alert('Upload cancelled by user');
+                } else {
+                    alert('Upload failed: ' + err.message);
+                }
+                progressFill.style.width = '0%';
+                progressFill.textContent = '';
+            } finally {
+                uploadBtn.style.display = 'block';
+                cancelBtn.style.display = 'none';
+                uploadController = null;
+            }
+        }
+
+        function cancelUpload() {
+            if (uploadController) {
+                uploadController.abort();
             }
         }
 

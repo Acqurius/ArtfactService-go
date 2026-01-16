@@ -91,7 +91,7 @@ class ArtifactClient {
             const { presigned_url, uuid } = await presignedResponse.json();
 
             // Step 3: Upload file directly to S3
-            await this._uploadToS3(presigned_url, file, file.type, onProgress);
+            await this._uploadToS3(presigned_url, file, file.type, onProgress, options.signal);
 
             return {
                 uuid,
@@ -206,7 +206,7 @@ class ArtifactClient {
      * Internal method to upload file to S3 with progress tracking
      * @private
      */
-    async _uploadToS3(presignedUrl, file, contentType, onProgress) {
+    async _uploadToS3(presignedUrl, file, contentType, onProgress, signal) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
 
@@ -217,6 +217,14 @@ class ArtifactClient {
                         const percent = Math.round((e.loaded / e.total) * 100);
                         onProgress(percent);
                     }
+                });
+            }
+
+            // Handle cancellation
+            if (signal) {
+                signal.addEventListener('abort', () => {
+                    xhr.abort();
+                    reject(new DOMException('Upload cancelled', 'AbortError'));
                 });
             }
 
@@ -293,9 +301,13 @@ class ArtifactClient {
      * @param {string} uploadTokenUrl - The full URL to submit file metadata provided by Admin
      * @param {File} file - The file object
      * @param {Function} [onProgress]
+     * @param {Object} [options]
+     * @param {AbortSignal} [options.signal] - Signal to abort the upload
      */
-    async uploadFileWithTokenUrl(uploadTokenUrl, file, onProgress = null) {
+    async uploadFileWithTokenUrl(uploadTokenUrl, file, onProgress = null, options = {}) {
         // Step 1: Request presigned S3 URL
+        // Note: We don't support cancelling this fetch step here for simplicity, 
+        // but arguably we should pass signal to fetch as well if supported by the browser.
         const presignedResponse = await fetch(uploadTokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -303,7 +315,8 @@ class ArtifactClient {
                 filename: file.name,
                 content_type: file.type || 'application/octet-stream',
                 size: file.size
-            })
+            }),
+            signal: options.signal // Pass signal to metadata fetch too
         });
 
         if (!presignedResponse.ok) {
@@ -313,7 +326,7 @@ class ArtifactClient {
         const { presigned_url, uuid } = await presignedResponse.json();
 
         // Step 2: Upload direct to S3
-        await this._uploadToS3(presigned_url, file, file.type, onProgress);
+        await this._uploadToS3(presigned_url, file, file.type, onProgress, options.signal);
 
         return { uuid, filename: file.name, size: file.size };
     }
