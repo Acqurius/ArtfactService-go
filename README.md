@@ -10,6 +10,7 @@ A file upload and download API service with presigned URL support, built with Go
 - 📊 **Swagger Documentation**: Interactive API documentation at `/swagger/index.html`
 - 💾 **SQLite Database**: Lightweight, file-based database for metadata storage
 - ☁️ **Ceph Storage**: S3-compatible object storage for scalable file management
+- 🔄 **Background Worker**: Active polling status checker for upload verification
 
 ## Prerequisites
 
@@ -96,6 +97,7 @@ Stores file metadata for uploaded artifacts.
 | filename | TEXT | Original filename |
 | content_type | TEXT | MIME type |
 | size | BIGINT | File size in bytes |
+| status | TEXT | Status: 'PENDING', 'UPLOADED', 'EXPIRED' |
 | created_at | TIMESTAMP | Upload timestamp |
 
 ### Tokens Table
@@ -234,6 +236,8 @@ ArtfactService-go/
 │   └── token.go
 ├── storage/            # Ceph/S3 storage integration
 │   └── storage.go
+├── worker/             # Background workers
+│   └── status_checker.go
 ├── scripts/            # Utility scripts
 │   └── init_db.go     # Database initialization script
 ├── schema.sql          # SQL schema definition
@@ -289,6 +293,15 @@ cp files.db files.db.backup
 - **File Content**: Stored in Ceph S3-compatible object storage
 - Files are stored with UUID as the object key in Ceph
 - Original filename and metadata are preserved in the database
+
+## Background Workers
+
+### Status Checker
+- Runs every **60 seconds**
+- Scans for artifacts with `PENDING` status
+- Verifies existence in S3/Ceph via `HeadObject`
+- Updates status to `UPLOADED` if found
+- Marks as `EXPIRED` if not found after **30 minutes**
 
 ## Notes
 
