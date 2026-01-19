@@ -4,9 +4,9 @@ import (
 	"log"
 	"net/http"
 
-	"file-upload-api/db"
-	"file-upload-api/models"
-	"file-upload-api/storage"
+	"ArtifactService/db"
+	"ArtifactService/models"
+	"ArtifactService/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"

@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"file-upload-api/db"
+	"ArtifactService/db"
 
 	"github.com/gin-gonic/gin"
 )

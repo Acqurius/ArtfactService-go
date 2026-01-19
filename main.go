@@ -3,11 +3,13 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
-	"file-upload-api/db"
-	_ "file-upload-api/docs"
-	"file-upload-api/handlers"
-	"file-upload-api/storage"
+	"ArtifactService/db"
+	_ "ArtifactService/docs"
+	"ArtifactService/handlers"
+	"ArtifactService/storage"
+	"ArtifactService/worker"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -28,6 +30,10 @@ func main() {
 	if err := storage.InitStorage(); err != nil {
 		log.Fatal("Failed to initialize storage: ", err)
 	}
+
+	// Start Background Workers
+	// Check for pending uploads every 60 seconds
+	worker.StartStatusChecker(60 * time.Second)
 
 	r := gin.Default()
 

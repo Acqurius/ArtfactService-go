@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 )
 
 var (
@@ -182,3 +183,26 @@ func GeneratePresignedUploadURL(uuid, filename, contentType string, expirationMi
 	log.Printf("Generated presigned upload URL for uuid=%s, filename=%s, expires in %d minutes", uuid, filename, expirationMinutes)
 	return urlStr, nil
 }
+
+// CheckFileExists checks if a file exists in Ceph/S3
+func CheckFileExists(uuid string) (bool, error) {
+	_, err := s3Client.HeadObject(&s3.HeadObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(uuid),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case "NotFound", s3.ErrCodeNoSuchKey, "404":
+				return false, nil
+			}
+		}
+		// Fallback for non-awserr cases if needed, but for now propagate error if it's not a 404
+		// Actually, if it is a 404 but SDK didn't wrap it well (rare), we might erroneously return error.
+		// Detailed error logging:
+		// log.Printf("HeadObject error for %s: %v", uuid, err)
+		return false, err
+	}
+	return true, nil
+}
+

@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"file-upload-api/db"
-	"file-upload-api/models"
+	"ArtifactService/db"
+	"ArtifactService/models"
 
 	"github.com/gin-gonic/gin"
 )

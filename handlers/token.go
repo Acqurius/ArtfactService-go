@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	"file-upload-api/db"
-	"file-upload-api/models"
-	"file-upload-api/storage"
+	"ArtifactService/db"
+	"ArtifactService/models"
+	"ArtifactService/storage"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -307,8 +307,8 @@ func UploadFileWithToken(c *gin.Context) {
 
 	// Save artifact metadata to database
 	_, err = db.DB.Exec(`
-		INSERT INTO Artifacts (uuid, filename, content_type, size)
-		VALUES (?, ?, ?, ?)`,
+		INSERT INTO Artifacts (uuid, filename, content_type, size, status)
+		VALUES (?, ?, ?, ?, 'PENDING')`,
 		artifactUUID, uploadReq.Filename, uploadReq.ContentType, uploadReq.Size)
 	if err != nil {
 		log.Println("Failed to insert artifact metadata:", err)

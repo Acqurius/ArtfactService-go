@@ -37,6 +37,7 @@ func createTable() {
 		filename TEXT NOT NULL,
 		content_type TEXT NOT NULL,
 		size BIGINT NOT NULL,
+		status TEXT DEFAULT 'UPLOADED',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
 
@@ -44,6 +45,20 @@ func createTable() {
 	if err != nil {
 		log.Fatal("Failed to create table Artifacts: ", err)
 	}
+	
+	// Migration: Check if status column exists, if not add it
+	_, err = DB.Exec("SELECT status FROM Artifacts LIMIT 1")
+	if err != nil {
+		// Column likely doesn't exist
+		fmt.Println("Migrating Artifacts table: adding status column...")
+		_, err = DB.Exec("ALTER TABLE Artifacts ADD COLUMN status TEXT DEFAULT 'UPLOADED';")
+		if err != nil {
+			log.Printf("Warning: Failed to add status column (might already exist or error): %v", err)
+		} else {
+			fmt.Println("Migration successful: status column added")
+		}
+	}
+	
 	fmt.Println("Table 'Artifacts' ensured")
 
 	// Create tokens table

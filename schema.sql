@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS Artifacts (
     filename TEXT NOT NULL,
     content_type TEXT NOT NULL,
     size BIGINT NOT NULL,
+    status TEXT DEFAULT 'UPLOADED',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

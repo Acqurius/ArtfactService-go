@@ -1,4 +1,4 @@
-module file-upload-api
+module ArtifactService
 
 go 1.24.0
 
