@@ -54,6 +54,7 @@ func main() {
 
 	// Routes
 	r.POST("/artifact-service/v1/artifacts/", handlers.UploadFile)
+	r.POST("/artifact-service/v1/artifacts/:uuid/complete", handlers.CompleteUpload)
 	r.GET("/artifact-service/v1/artifacts/", handlers.ListArtifacts)
 	r.GET("/artifact-service/v1/artifacts/:uuid/action/downloadFile", handlers.DownloadFile)
 	r.DELETE("/artifact-service/v1/artifacts/:uuid", handlers.DeleteArtifact)

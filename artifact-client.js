@@ -303,11 +303,10 @@ class ArtifactClient {
      * @param {Function} [onProgress]
      * @param {Object} [options]
      * @param {AbortSignal} [options.signal] - Signal to abort the upload
+     * @returns {Promise<Object>} Upload result { uuid, filename, size, status }
      */
     async uploadFileWithTokenUrl(uploadTokenUrl, file, onProgress = null, options = {}) {
         // Step 1: Request presigned S3 URL
-        // Note: We don't support cancelling this fetch step here for simplicity, 
-        // but arguably we should pass signal to fetch as well if supported by the browser.
         const presignedResponse = await fetch(uploadTokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -316,7 +315,7 @@ class ArtifactClient {
                 content_type: file.type || 'application/octet-stream',
                 size: file.size
             }),
-            signal: options.signal // Pass signal to metadata fetch too
+            signal: options.signal
         });
 
         if (!presignedResponse.ok) {
@@ -328,7 +327,30 @@ class ArtifactClient {
         // Step 2: Upload direct to S3
         await this._uploadToS3(presigned_url, file, file.type, onProgress, options.signal);
 
+        // Step 3: Notify server that upload is complete
+        try {
+            await this.completeUpload(uuid);
+        } catch (err) {
+            console.warn('Upload completion notification failed, server worker should handle it:', err);
+        }
+
         return { uuid, filename: file.name, size: file.size };
+    }
+
+    /**
+     * Notify server that upload is complete
+     * @param {string} uuid - Artifact UUID
+     */
+    async completeUpload(uuid) {
+        const response = await fetch(`${this.baseUrl}/artifact-service/v1/artifacts/${uuid}/complete`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to marks upload as complete: ${response.statusText}`);
+        }
+
+        return await response.json();
     }
 
     /**

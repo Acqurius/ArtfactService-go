@@ -215,6 +215,19 @@ Content-Type: application/json
 GET /artifacts/:token
 ```
 
+### Complete Upload (Verification)
+Allows the client to notify the server that the upload is complete. The server verifies the file in storage and updates status.
+```http
+POST /artifact-service/v1/artifacts/{uuid}/complete
+```
+**Response:**
+```json
+{
+  "message": "Upload verification successful",
+  "status": "UPLOADED"
+}
+```
+
 ### API Documentation
 ```http
 GET /swagger/index.html
