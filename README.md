@@ -11,6 +11,7 @@ A file upload and download API service with presigned URL support, built with Go
 - 💾 **SQLite Database**: Lightweight, file-based database for metadata storage
 - ☁️ **Ceph Storage**: S3-compatible object storage for scalable file management
 - 🔄 **Background Worker**: Active polling status checker for upload verification
+- 📝 **Audit Logging**: Configurable logging system (Internal/External) for tracking file operations
 
 ## Prerequisites
 
@@ -251,6 +252,8 @@ ArtfactService-go/
 │   └── storage.go
 ├── worker/             # Background workers
 │   └── status_checker.go
+├── logger/             # Audit logging system
+│   └── audit.go
 ├── scripts/            # Utility scripts
 │   └── init_db.go     # Database initialization script
 ├── schema.sql          # SQL schema definition
@@ -282,6 +285,28 @@ go test ./...
 | CEPH_SECRET_KEY | (required) | Ceph S3 secret key |
 | CEPH_ENDPOINT | (required) | Ceph S3 endpoint URL |
 | CEPH_BUCKET | artifacts | Ceph S3 bucket name |
+| LOG_MODE | INTERNAL | Logging mode: `INTERNAL` (stdout) or `EXTERNAL` |
+| LOG_SERVICE_URL | - | Destination URL for external logging service |
+
+## Logging System
+
+The service includes a built-in audit logger to track critical operations (Upload, Download).
+
+### Configuration
+- **INTERNAL Mode** (Default): Logs JSON-formatted audit entries to standard output. Suitable for containerized environments where logs are collected by the runtime.
+- **EXTERNAL Mode**: Designed to integrate with external systems (e.g., SEMI, Splunk). Configure `LOG_SERVICE_URL` to point to the external log aggregator.
+
+### Log Format
+```json
+{
+  "timestamp": "2024-01-21T10:00:00Z",
+  "action": "UPLOAD",
+  "artifact_uuid": "550e8400-...",
+  "client_ip": "192.168.1.100",
+  "status": "SUCCESS",
+  "details": "Presigned upload completed"
+}
+```
 
 ## Database Management
 

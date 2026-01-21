@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ArtifactService/db"
+	"ArtifactService/logger"
 	"ArtifactService/models"
 	"ArtifactService/storage"
 
@@ -210,6 +211,10 @@ func DownloadFileWithToken(c *gin.Context) {
 
 	// Return 302 redirect to the presigned URL
 	c.Redirect(http.StatusFound, presignedURL)
+
+	// Audit Log
+	// Note: We log successful REDIRECT as success, though we don't know if actual download finishes for sure here.
+	logger.Record(logger.ActionDownload, t.ArtifactUUID, c.ClientIP(), "", "SUCCESS", "Download via token")
 }
 
 // UploadFileWithToken godoc

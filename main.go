@@ -8,6 +8,7 @@ import (
 	"ArtifactService/db"
 	_ "ArtifactService/docs"
 	"ArtifactService/handlers"
+	"ArtifactService/logger"
 	"ArtifactService/storage"
 	"ArtifactService/worker"
 
@@ -26,6 +27,15 @@ func main() {
 	// Initialize Database
 	db.InitDB()
 	
+	// Initialize Audit Logger
+	// Default to INTERNAL, can be switched via env var LOG_MODE
+	logMode := os.Getenv("LOG_MODE")
+	logURL := os.Getenv("LOG_SERVICE_URL")
+	if logMode == "" {
+		logMode = logger.ModeInternal
+	}
+	logger.InitLogger(logMode, logURL)
+
 	// Initialize Storage (Ceph/S3)
 	if err := storage.InitStorage(); err != nil {
 		log.Fatal("Failed to initialize storage: ", err)

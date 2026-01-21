@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"ArtifactService/db"
+	"ArtifactService/logger"
 	"ArtifactService/models"
 	"ArtifactService/storage"
 
@@ -79,6 +80,8 @@ func UploadFile(c *gin.Context) {
 		"uuid":         uuid,
 		"download_url": downloadURL,
 	})
+
+	logger.Record(logger.ActionUpload, uuid, c.ClientIP(), "", "SUCCESS", "Standard upload")
 }
 
 // CompleteUpload godoc
@@ -140,4 +143,6 @@ func CompleteUpload(c *gin.Context) {
 		"message": "Upload verification successful",
 		"status":  "UPLOADED",
 	})
+	
+	logger.Record(logger.ActionUpload, uuid, c.ClientIP(), "", "SUCCESS", "Presigned upload completed")
 }
